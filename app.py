@@ -1,7 +1,6 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
-from nws_api import get_high_wind_period 
 from nws_api import handle_weather_command # or whatever other logic module
 import os
 
