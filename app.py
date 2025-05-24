@@ -1,7 +1,8 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
-from nws_api import get_high_wind_period  # or whatever other logic module
+from nws_api import get_high_wind_period 
+from nws_api import handle_weather_command # or whatever other logic module
 import os
 
 load_dotenv()
@@ -17,12 +18,29 @@ def windbot():
     lon = os.getenv("LON")
     threshold = float(os.getenv("WIND_THRESHOLD", 25))
 
-    if cmd == "forecast" or cmd == "wind now":
-        message = get_high_wind_period(lat, lon, threshold)
-    elif cmd == "hello":
+    if cmd == "hello":
         message = "👋 Hello! You are connected to Jamison's command center."
+    elif cmd == "commands":
+        message = (
+            "📋 Available commands:\n"
+            "- hello\n"
+            "- commands\n"
+            "- forecast\n"
+            "- wind now\n"
+            "- temp now\n"
+            "- rain today\n"
+            "- alert\n"
+            "- hourly\n"
+            "- sunrise\n"
+            "- sunset"
+        )
+    elif cmd in [
+        "forecast", "wind now", "temp now", "rain today",
+        "alert", "hourly", "sunrise", "sunset"
+    ]:
+        message = handle_weather_command(cmd, lat, lon)
     else:
-        message = "🤖 Unknown command. Try 'forecast' or 'hello'."
+        message = "🤖 Unknown command. Type 'commands' to see what's available."
 
     return jsonify({"message": message})
 
