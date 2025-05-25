@@ -15,35 +15,38 @@ import requests
 @app.route("/api/vape", methods=["POST"])
 def vapebot():
     data = request.get_json()
-    cmd = data.get("command", "").strip()
+    prompt = data.get("command", "").strip()
+    print("🔥 Prompt received:", prompt)
 
-    if cmd.startswith("vape"):
-        prompt = cmd[4:].strip()
-        print("Prompt sent to mistral:", prompt)
+    try:
+        history = load_memory()
+        MAX_CONTEXT = 8
+        if len(history) > MAX_CONTEXT:
+            history = history[-MAX_CONTEXT:]
 
-        try:
-            history = load_memory()
-            history.append({"role": "user", "content": prompt})
+        history.append({"role": "user", "content": prompt})
 
-            r = requests.post("http://localhost:11434/api/chat", json={
-                "model": "mistral",
-                "messages": history,
-                "stream": False
-            })
+        r = requests.post("http://localhost:11434/api/chat", json={
+            "model": "mistral",
+            "messages": history,
+            "stream": False
+        })
 
-            data = r.json()
-            print("LLM raw response:", data)
+        data = r.json()
+        print("🧠 Raw LLM response:", data)
 
-            reply = data.get("message", {}).get("content", "🤖 No response.")
-            history.append({"role": "assistant", "content": reply})
-            save_memory(history)
-            print("✅ save_memory() called successfully.")
+        reply = data.get("message", {}).get("content")
+        if not reply:
+            reply = data.get("choices", [{}])[0].get("message", {}).get("content", "🤖 No response.")
 
-            return jsonify({"message": reply})
+        history.append({"role": "assistant", "content": reply})
+        save_memory(history)
 
-        except Exception as e:
-            print("LLM error:", e)
-            return jsonify({"message": f"❌ Could not reach Vape. {e}"})
+        return jsonify({"message": reply})
+    except Exception as e:
+        print("❌ LLM error:", e)
+        return jsonify({"message": f"❌ Could not process: {str(e)}"}), 500
+
 
 
 
