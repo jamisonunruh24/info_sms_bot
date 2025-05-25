@@ -3,45 +3,48 @@ from flask_cors import CORS
 from dotenv import load_dotenv
 from nws_api import handle_weather_command # or whatever other logic module
 import os
+from memory import load_memory, save_memory
+
 
 load_dotenv()
 app = Flask(__name__)
 CORS(app)  # Allow cross-origin requests from frontend (Vite)
 
-@app.route("/api/windbot", methods=["POST"])
-def windbot():
+import requests
+
+@app.route("/api/vape", methods=["POST"])
+def vapebot():
     data = request.get_json()
-    cmd = data.get("command", "").lower().strip()
+    cmd = data.get("command", "").strip()
 
-    lat = os.getenv("LAT")
-    lon = os.getenv("LON")
-    threshold = float(os.getenv("WIND_THRESHOLD", 25))
+    if cmd.startswith("vape"):
+        prompt = cmd[4:].strip()
+        print("Prompt sent to mistral:", prompt)
 
-    if cmd == "hello":
-        message = "👋 Hello! You are connected to Jamison's command center."
-    elif cmd == "commands":
-        message = (
-            "📋 Available commands:\n"
-            "- hello\n"
-            "- commands\n"
-            "- forecast\n"
-            "- wind now\n"
-            "- temp now\n"
-            "- rain today\n"
-            "- alert\n"
-            "- hourly\n"
-            "- sunrise\n"
-            "- sunset"
-        )
-    elif cmd in [
-        "forecast", "wind now", "temp now", "rain today",
-        "alert", "hourly", "sunrise", "sunset"
-    ]:
-        message = handle_weather_command(cmd, lat, lon)
-    else:
-        message = "🤖 Unknown command. Type 'commands' to see what's available."
+        try:
+            history = load_memory()
+            history.append({"role": "user", "content": prompt})
 
-    return jsonify({"message": message})
+            r = requests.post("http://localhost:11434/api/chat", json={
+                "model": "mistral",
+                "messages": history,
+                "stream": False
+            })
+
+            data = r.json()
+            print("LLM raw response:", data)
+
+            reply = data.get("message", {}).get("content", "🤖 No response.")
+            history.append({"role": "assistant", "content": reply})
+            save_memory(history)
+            print("✅ save_memory() called successfully.")
+
+            return jsonify({"message": reply})
+
+        except Exception as e:
+            print("LLM error:", e)
+            return jsonify({"message": f"❌ Could not reach Vape. {e}"})
+
 
 
 if __name__ == "__main__":
